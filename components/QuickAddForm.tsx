@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Animated } from 'react-native';
 import { theme } from '@/constants/theme';
 
 interface QuickAddFormProps {
@@ -13,9 +13,13 @@ export const QuickAddForm: React.FC<QuickAddFormProps> = ({ onAdd, dailyTarget, 
   const [label, setLabel] = useState('');
   const [note, setNote] = useState('');
   const [noteRequired, setNoteRequired] = useState(false);
+  const [showAmountError, setShowAmountError] = useState(false);
+  const [errorAttempts, setErrorAttempts] = useState(0);
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const handleAmountChange = useCallback((value: string) => {
     setAmount(value);
+    setShowAmountError(false);
     
     if (value) {
       const numAmount = parseFloat(value);
@@ -33,11 +37,16 @@ export const QuickAddForm: React.FC<QuickAddFormProps> = ({ onAdd, dailyTarget, 
   }, [currentTotal, dailyTarget]);
 
   const handleSubmit = () => {
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const parsedAmount = parseFloat(amount);
+    const isValid = amount && !isNaN(parsedAmount) && parsedAmount > 0;
+    if (!isValid) {
+      handleError();
       return;
     }
+    setShowAmountError(false);
+    setErrorAttempts(0);
 
+    const numAmount = parsedAmount;
     const newTotal = currentTotal + numAmount;
 
     if (newTotal > dailyTarget && !note.trim()) {
@@ -51,34 +60,55 @@ export const QuickAddForm: React.FC<QuickAddFormProps> = ({ onAdd, dailyTarget, 
     setLabel('');
     setNote('');
     setNoteRequired(false);
+    setShowAmountError(false);
   };
 
   const showNoteError = noteRequired && !note.trim();
-  const showAmountError = amount !== '' && parseFloat(amount) <= 0;
+  const errorMessage = showAmountError ? 'Enter a valid amount' : '';
+
+  const shake = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 2, duration: 30, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -2, duration: 30, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 2, duration: 30, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -2, duration: 30, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 30, useNativeDriver: true }),
+    ]).start();
+  }, [shakeAnim]);
+
+  const handleError = useCallback(() => {
+    setShowAmountError(true);
+    const attempts = errorAttempts + 1;
+    setErrorAttempts(attempts);
+    if (attempts >= 3) {
+      shake();
+    }
+  }, [errorAttempts, shake]);
 
   return (
     <View style={styles.container}>
       <View style={styles.inputsRow}>
         <Text style={styles.currencyPrefix}>$</Text>
-        <TextInput
-          style={[styles.input, showAmountError && styles.inputError]}
-          placeholder="0.00"
-          placeholderTextColor={theme.colors.text.muted}
-          keyboardType="decimal-pad"
-          value={amount}
-          onChangeText={handleAmountChange}
-          returnKeyType="next"
-        />
+        <Animated.View style={[styles.amountInputWrapper, { transform: [{ translateX: shakeAnim }] }]}>
+          <TextInput
+            style={[styles.input, showAmountError && styles.inputError]}
+            placeholder="0.00"
+            placeholderTextColor={theme.colors.text.muted}
+            keyboardType="decimal-pad"
+            value={amount}
+            onChangeText={handleAmountChange}
+            returnKeyType="next"
+          />
+          {errorMessage.length > 0 && (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          )}
+        </Animated.View>
         <View style={styles.buttonWrapper}>
           <TouchableOpacity style={styles.button} onPress={handleSubmit} activeOpacity={0.7}>
             <Text style={styles.buttonText}>+ Add</Text>
           </TouchableOpacity>
         </View>
       </View>
-      
-      {showAmountError && (
-        <Text style={styles.errorText}>Enter a valid amount</Text>
-      )}
       
       {noteRequired && (
         <View style={styles.noteContainer}>
@@ -110,7 +140,7 @@ const styles = StyleSheet.create({
   },
   inputsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: theme.spacing.md,
   },
   currencyPrefix: {
@@ -148,6 +178,9 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.error,
     marginTop: theme.spacing.xs,
+  },
+  amountInputWrapper: {
+    flex: 1,
   },
   noteContainer: {
     marginTop: theme.spacing.sm,

@@ -13,7 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors, theme } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { resetAllData } from "@/lib/db";
+import { resetAllData, addEntryWithDate, deleteAllEntries } from "@/lib/db";
+import { useEntries } from "@/lib/useEntries";
 import { useSettings } from "@/lib/useSettings";
 
 export default function SettingsScreen() {
@@ -25,15 +26,13 @@ export default function SettingsScreen() {
     setDayStartHour,
     hardCap,
     setHardCap,
-    carryoverEnabled,
-    setCarryoverEnabled,
-    carryoverBalance,
-    carryoverDays,
     loading,
   } = useSettings();
   const [inputValue, setInputValue] = useState("");
   const [hourInputValue, setHourInputValue] = useState("");
   const [hardCapInputValue, setHardCapInputValue] = useState("");
+  const [isGeneratingTestData, setIsGeneratingTestData] = useState(false);
+  const { refreshToday, refreshHistory } = useEntries();
 
   React.useEffect(() => {
     if (dailyTarget !== null) {
@@ -104,6 +103,63 @@ export default function SettingsScreen() {
     );
   }, []);
 
+  const handleGenerateTestData = useCallback(async () => {
+    setIsGeneratingTestData(true);
+    try {
+      for (let i = -29; i <= 0; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() + i);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        const numEntries = Math.floor(Math.random() * 4) + 1;
+        let remaining = Math.floor(Math.random() * 300) + 200;
+        
+        for (let j = 0; j < numEntries - 1; j++) {
+          const amount = Math.floor(Math.random() * (remaining / 2)) + 10;
+          await addEntryWithDate(amount, dateStr);
+          remaining -= amount;
+        }
+        if (remaining > 0) {
+          await addEntryWithDate(remaining, dateStr);
+        }
+      }
+      await refreshToday();
+      await refreshHistory();
+      Alert.alert('Done', 'Test data generated (30 days).');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to generate test data.');
+    } finally {
+      setIsGeneratingTestData(false);
+    }
+  }, [refreshToday, refreshHistory]);
+
+  const handleClearTestData = useCallback(() => {
+    Alert.alert(
+      'Clear Test Data',
+      'This will delete all entries. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAllEntries();
+              await refreshToday();
+              await refreshHistory();
+              Alert.alert('Done', 'All entries deleted.');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear data.');
+            }
+          },
+        },
+      ],
+    );
+  }, [refreshToday, refreshHistory]);
+
   return (
     <SafeAreaView
       style={[
@@ -173,43 +229,6 @@ export default function SettingsScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Carryover Budget</Text>
-            <Text style={styles.helperText}>
-              Unused daily budget carries to next day (max 3 days)
-            </Text>
-            <View style={styles.inputRow}>
-              <Text style={styles.toggleLabel}>
-                {carryoverEnabled ? 'Enabled' : 'Disabled'}
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.toggleButton,
-                  carryoverEnabled && styles.toggleButtonEnabled,
-                ]}
-                onPress={() => setCarryoverEnabled(!carryoverEnabled)}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.toggleKnob,
-                    carryoverEnabled && styles.toggleKnobEnabled,
-                  ]}
-                />
-              </TouchableOpacity>
-            </View>
-            {carryoverEnabled && (
-              <View style={styles.carryoverInfo}>
-                <Text style={styles.carryoverInfoText}>
-                  Current carryover: ${carryoverBalance.toFixed(2)}
-                </Text>
-                <Text style={styles.carryoverInfoText}>
-                  Days remaining: {Math.max(0, 3 - carryoverDays)}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.section}>
             <Text style={styles.label}>Day Starts At</Text>
             <Text style={styles.helperText}>
               New day begins at this time (24hr)
@@ -243,6 +262,31 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {__DEV__ && (
+            <View style={styles.section}>
+              <Text style={styles.label}>Test Data (Dev Only)</Text>
+              <View style={styles.devButtonsRow}>
+                <TouchableOpacity
+                  style={styles.devButton}
+                  onPress={handleGenerateTestData}
+                  disabled={isGeneratingTestData}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.devButtonText}>
+                    {isGeneratingTestData ? 'Generating...' : 'Generate Test Data'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.devButton, styles.devButtonDanger]}
+                  onPress={handleClearTestData}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.devButtonTextDanger}>Clear All</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           <View style={styles.dividerBottom} />
 
@@ -413,5 +457,55 @@ content: {
   carryoverInfoText: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text.secondary,
+  },
+  appliesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  appliesLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+  },
+  appliesButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.card,
+  },
+  appliesButtonActive: {
+    backgroundColor: theme.colors.accent,
+  },
+  appliesText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+  },
+  appliesTextActive: {
+    color: theme.colors.background,
+  },
+  devButtonsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  devButton: {
+    flex: 1,
+    backgroundColor: theme.colors.card,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    alignItems: 'center',
+  },
+  devButtonDanger: {
+    backgroundColor: theme.colors.error + '20',
+  },
+  devButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.accent,
+  },
+  devButtonTextDanger: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.error,
   },
 });

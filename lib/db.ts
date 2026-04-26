@@ -59,6 +59,26 @@ export const addEntry = async (amount: number, label: string = '', note?: string
   }
 };
 
+export const addEntryWithDate = async (amount: number, date: string, label: string = '', note?: string) => {
+  if (isNative) {
+    const { addEntryWithDate } = await import('./db.native');
+    return addEntryWithDate(amount, date, label, note);
+  } else {
+    const { addEntryWithDate } = await import('./db.web');
+    return addEntryWithDate(amount, date, label, note);
+  }
+};
+
+export const deleteAllEntries = async () => {
+  if (isNative) {
+    const { deleteAllEntries } = await import('./db.native');
+    return deleteAllEntries();
+  } else {
+    const { deleteAllEntries } = await import('./db.web');
+    return deleteAllEntries();
+  }
+};
+
 export const getEntriesByDate = async (date: string) => {
   if (isNative) {
     const { getEntriesByDate } = await import('./db.native');

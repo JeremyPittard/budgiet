@@ -254,5 +254,22 @@ export const resetAllData = async (): Promise<void> => {
   await saveData(cache);
 };
 
+export const addEntryWithDate = async (amount: number, date: string, label: string = '', note?: string): Promise<number> => {
+  await initDatabase();
+  const id = Date.now();
+  const now = new Date().toISOString();
+  
+  const entry: Entry = { id, amount, label, date, created_at: now, note };
+  cache.entries.push(entry);
+  await saveData(cache);
+  return id;
+};
+
+export const deleteAllEntries = async (): Promise<void> => {
+  await initDatabase();
+  cache.entries = [];
+  await saveData(cache);
+};
+
 // Export db as null (not using expo-sqlite)
 export const db = null;

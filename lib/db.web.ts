@@ -211,3 +211,18 @@ export const resetAllData = async (): Promise<void> => {
   cache = { settings: { daily_target: '50.00', day_start_hour: 4 }, entries: [], rollovers: [] };
   saveData(cache);
 };
+
+export const addEntryWithDate = async (amount: number, date: string, label: string = '', note?: string): Promise<number> => {
+  cache = loadData();
+  const id = Date.now();
+  const now = new Date().toISOString();
+  cache.entries.push({ id, amount, label, date, created_at: now, note });
+  saveData(cache);
+  return id;
+};
+
+export const deleteAllEntries = async (): Promise<void> => {
+  cache = loadData();
+  cache.entries = [];
+  saveData(cache);
+};

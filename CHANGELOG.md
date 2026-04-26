@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.0] - 2026-04-26
+
+### Added
+- Overspend rollover feature (soft/hard caps roll over to next day)
+- Test data buttons (development only)
+
+### Fixed
+- State synchronization across Today and History screens (entries now update immediately)
+- BudgetRing now updates immediately when overspend entries added from history
+- False "Failed to add/delete entry" alerts removed (was calling undefined refresh)
+- QuickAddForm validation error alignment (error now under input field)
+- Shake animation reduced from aggressive 10px to subtle 2px
+
+### Removed
+- Period selector UI (hardcoded to "today" only)
+- usePeriodSummary hook (replaced with direct EntriesContext usage)
+- Carryover feature (replaced by overspend rollover)
+
 ## [1.2.0] - 2026-04-26
 
 ### Added

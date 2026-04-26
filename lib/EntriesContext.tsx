@@ -17,7 +17,7 @@ interface EntriesContextType {
   }>;
   todayTotal: number;
   loading: boolean;
-  addEntry: (amount: number, label?: string) => Promise<void>;
+  addEntry: (amount: number, label?: string, note?: string) => Promise<void>;
   deleteEntry: (id: number) => Promise<void>;
   refreshToday: () => Promise<void>;
   refreshHistory: () => Promise<void>;
@@ -73,15 +73,16 @@ export const EntriesProvider: React.FC<EntriesProviderProps> = ({ children }) =>
     loadHistoryData();
   }, [loadTodayData, loadHistoryData]);
 
-  const addEntryHandler = useCallback(async (amount: number, label: string = '') => {
+  const addEntryHandler = useCallback(async (amount: number, label: string = '', note?: string) => {
     try {
-      await addEntry(amount, label);
+      await addEntry(amount, label, note);
       await loadTodayData();
+      await loadHistoryData();
     } catch (error) {
       console.error('Error adding entry:', error);
       throw error;
     }
-  }, [loadTodayData]);
+  }, [loadTodayData, loadHistoryData]);
 
   const deleteEntryHandler = useCallback(async (id: number) => {
     try {

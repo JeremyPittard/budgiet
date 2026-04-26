@@ -36,8 +36,8 @@ interface DayGroup {
 
 export default function HistoryScreen() {
   const colorScheme = useColorScheme();
-  const { history, deleteEntry, refreshHistory, loading } = useEntries();
-  const { dailyTarget } = useSettings();
+  const { history, deleteEntry, refreshHistory, refreshToday, addEntry: addEntryToContext, loading } = useEntries();
+  const { dailyTarget, hardCap } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
 
@@ -83,6 +83,30 @@ export default function HistoryScreen() {
     );
   }, [deleteEntry, refreshHistory]);
 
+  const handleOverspendRollover = useCallback(async (type: 'soft' | 'hard', dayTotal: number, dayDate: string) => {
+    const softTarget = dailyTarget ?? 50;
+    const amount = type === 'soft' 
+      ? dayTotal - softTarget 
+      : (hardCap ? dayTotal - hardCap : 0);
+    
+    const typeLabel = type === 'soft' ? 'Soft' : 'Hard';
+    Alert.alert(
+      `Rollover ${typeLabel} Overspend`,
+      `Add $${amount.toFixed(2)} to today as overspend from ${formatDayName(dayDate)}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Add', 
+          onPress: async () => {
+            await addEntryToContext(amount, '', 'overspend - ' + type);
+            await refreshToday();
+            await refreshHistory();
+          },
+        },
+      ]
+    );
+  }, [dailyTarget, hardCap, refreshToday, refreshHistory, addEntryToContext]);
+
   // Group history by week
   const groupedHistory = React.useMemo(() => {
     const groups: DayGroup[] = [];
@@ -127,6 +151,9 @@ export default function HistoryScreen() {
   }}) => {
     const isExpanded = expandedDates.has(item.date);
     const isOverBudget = item.total > (dailyTarget ?? 50);
+    const isOverHard = hardCap ? item.total > hardCap : false;
+    const softAmount = item.total - (dailyTarget ?? 50);
+    const hardAmount = hardCap ? item.total - hardCap : 0;
 
     return (
       <View style={styles.dayContainer}>
@@ -168,6 +195,34 @@ export default function HistoryScreen() {
                 </View>
               </View>
             ))}
+
+            {(isOverBudget || isOverHard) && (
+              <View style={styles.rolloverContainer}>
+                <Text style={styles.rolloverTitle}>Make up overspend</Text>
+                <View style={styles.rolloverButtons}>
+                  {isOverBudget && (
+                    <TouchableOpacity 
+                      style={styles.rolloverButton}
+                      onPress={() => handleOverspendRollover('soft', item.total, item.date)}
+                    >
+                      <Text style={styles.rolloverButtonText}>
+                        Soft ${softAmount.toFixed(0)}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {isOverHard && (
+                    <TouchableOpacity 
+                      style={styles.rolloverButton}
+                      onPress={() => handleOverspendRollover('hard', item.total, item.date)}
+                    >
+                      <Text style={styles.rolloverButtonText}>
+                        Hard ${hardAmount.toFixed(0)}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -313,5 +368,33 @@ const styles = StyleSheet.create({
   deleteText: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.error,
+  },
+  rolloverContainer: {
+    marginTop: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  rolloverTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
+  rolloverButtons: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  rolloverButton: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    alignItems: 'center',
+  },
+  rolloverButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.accent,
   },
 });

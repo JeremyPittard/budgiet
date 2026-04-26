@@ -16,51 +16,26 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors, theme } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import {
-  addEntry as addEntryToDb,
-  deleteEntry as deleteEntryFromDb,
-} from "@/lib/db";
-import { useCarryover } from "@/lib/useCarryover";
-import { usePeriodSummary } from "@/lib/usePeriodSummary";
 import { useSettings } from "@/lib/useSettings";
+import { useEntries } from "@/lib/useEntries";
+import { calculateProgress, getProgressColor } from "@/lib/formatters";
 
 import { BudgetRing } from "@/components/BudgetRing";
 import { EmptyState } from "@/components/EmptyState";
 import { EntryRow } from "@/components/EntryRow";
 import { QuickAddForm } from "@/components/QuickAddForm";
 
-type PeriodType = "today" | "week" | "fortnight" | "month" | "year";
-
-const PERIODS: { key: PeriodType; label: string }[] = [
-  { key: "today", label: "Today" },
-  { key: "week", label: "Week" },
-  { key: "fortnight", label: "Fortnight" },
-  { key: "month", label: "Month" },
-  { key: "year", label: "Year" },
-];
-
 export default function TodayScreen() {
   const colorScheme = useColorScheme();
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("today");
-  const { dailyTarget, refreshSettings } = useSettings();
-  const {
-    periodTarget,
-    total,
-    remaining,
-    isOverBudget,
-    progress,
-    progressColor,
-    isTargetSet,
-    hardCapAmount,
-    entries,
-    refresh,
-  } = usePeriodSummary(selectedPeriod);
-  const {
-    carryoverBalance,
-    daysRemaining,
-    carryoverEnabled,
-    effectiveRemaining,
-  } = useCarryover();
+  const { dailyTarget, hardCapAmount, refreshSettings } = useSettings();
+  const { todayEntries, addEntry: addEntryToContext, deleteEntry: deleteEntryToContext } = useEntries();
+
+  const total = todayEntries.reduce((sum, e) => sum + e.amount, 0);
+  const remaining = dailyTarget !== null ? dailyTarget - total : null;
+  const isOverBudget = dailyTarget !== null ? total > dailyTarget : false;
+  const progress = dailyTarget && dailyTarget > 0 ? calculateProgress(total, dailyTarget) : 0;
+  const progressColor = dailyTarget ? getProgressColor(total, dailyTarget) : "#6b7280";
+const isTargetSet = dailyTarget !== null && dailyTarget > 0;
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -79,63 +54,50 @@ export default function TodayScreen() {
   const handleAddEntry = useCallback(
     async (amount: number, label: string, note?: string) => {
       try {
-        await addEntryToDb(amount, label, note);
-        refresh();
+        await addEntryToContext(amount, label, note);
       } catch (error) {
         Alert.alert("Error", "Failed to add entry");
       }
     },
-    [refresh],
+    [addEntryToContext],
   );
 
   const handleDeleteEntry = useCallback(
     async (id: number) => {
       try {
-        await deleteEntryFromDb(id);
-        refresh();
+        await deleteEntryToContext(id);
       } catch (error) {
         Alert.alert("Error", "Failed to delete entry");
       }
     },
-    [refresh],
+    [deleteEntryToContext],
   );
 
-  const handleResetPeriod = useCallback(() => {
-    Alert.alert(
-      `Reset ${selectedPeriod === "today" ? "Today" : "This " + selectedPeriod}`,
-      `Are you sure you want to delete all entries for this period?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            for (const entry of entries) {
-              await deleteEntryFromDb(entry.id);
-            }
-          },
+const handleResetPeriod = useCallback(() => {
+  Alert.alert(
+    "Reset Today",
+    "Are you sure you want to delete all entries for this period?",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          for (const entry of todayEntries) {
+            await deleteEntryToContext(entry.id);
+          }
         },
-      ],
-    );
-  }, [entries, selectedPeriod]);
+      },
+    ],
+  );
+  }, [todayEntries, deleteEntryToContext]);
 
   const openSettings = () => {
     Linking.openURL("budgiet://settings");
   };
 
   const getPeriodLabel = () => {
-    switch (selectedPeriod) {
-      case "today":
-        return format(new Date(), "EEEE, MMMM d");
-      case "week":
-        return "This Week";
-      case "fortnight":
-        return "This Fortnight";
-      case "month":
-        return "This Month";
-      case "year":
-        return "This Year";
-    }
+    return format(new Date(), "EEEE, MMMM d");
   };
 
   return (
@@ -158,34 +120,8 @@ export default function TodayScreen() {
         }
       >
         {/* Period Selector */}
-        <View style={styles.periodSelector}>
-          {PERIODS.map((period) => (
-            <TouchableOpacity
-              key={period.key}
-              style={[
-                styles.periodButton,
-                selectedPeriod === period.key && styles.periodButtonActive,
-              ]}
-              onPress={() => setSelectedPeriod(period.key)}
-            >
-              <Text
-                style={[
-                  styles.periodButtonText,
-                  selectedPeriod === period.key &&
-                    styles.periodButtonTextActive,
-                ]}
-              >
-                {period.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Date Header */}
-        <Text style={styles.dateHeader}>{getPeriodLabel()}</Text>
-
-        {/* Budget Ring / Summary Card */}
-        <View style={styles.card}>
+<View style={styles.card}>
+          <Text style={styles.dateHeader}>{getPeriodLabel()}</Text>
           {!isTargetSet ? (
             <View style={styles.noTargetBanner}>
               <Ionicons
@@ -206,52 +142,34 @@ export default function TodayScreen() {
           ) : (
             <>
               <BudgetRing
-                spent={total}
+                spent={todayEntries.reduce((sum, e) => sum + e.amount, 0)}
                 remaining={remaining ?? 0}
-                target={periodTarget ?? 50}
+                target={dailyTarget ?? 50}
                 isOverBudget={isOverBudget}
                 progress={progress}
                 progressColor={progressColor}
                 hardCapAmount={hardCapAmount ?? undefined}
               />
-              {selectedPeriod === "today" &&
-                carryoverEnabled &&
-                carryoverBalance > 0 && (
-                  <View style={styles.carryoverDisplay}>
-                    <Text style={styles.carryoverText}>
-                      +${carryoverBalance.toFixed(2)} carryover
-                    </Text>
-                    <Text style={styles.carryoverDaysText}>
-                      {daysRemaining} days left
-                    </Text>
-                  </View>
-                )}
             </>
           )}
         </View>
 
-        {/* Quick Add Form - Only for Today */}
-        {selectedPeriod === "today" && (
-          <View style={styles.section}>
-            <QuickAddForm
-              onAdd={handleAddEntry}
-              dailyTarget={dailyTarget ?? 50}
-              currentTotal={total}
-            />
-          </View>
-        )}
-
-        {/* Entries for Period */}
+        {/* Quick Add Form */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {selectedPeriod === "today"
-              ? "Today's Entries"
-              : `This ${selectedPeriod}`}
-          </Text>
-          {entries.length === 0 ? (
-            <EmptyState message={`No expenses this ${selectedPeriod}`} />
+          <QuickAddForm
+            onAdd={handleAddEntry}
+            dailyTarget={dailyTarget ?? 50}
+            currentTotal={todayEntries.reduce((sum, e) => sum + e.amount, 0)}
+          />
+        </View>
+
+        {/* Entries */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Today&apos;s Entries</Text>
+          {todayEntries.length === 0 ? (
+            <EmptyState message="No expenses today" />
           ) : (
-            entries.map((entry) => (
+            todayEntries.map((entry) => (
               <EntryRow
                 key={entry.id}
                 id={entry.id}
@@ -266,15 +184,13 @@ export default function TodayScreen() {
         </View>
 
         {/* Reset Period Button */}
-        {entries.length > 0 && (
+        {todayEntries.length > 0 && (
           <TouchableOpacity
             style={styles.resetButton}
             onPress={handleResetPeriod}
             activeOpacity={0.7}
           >
-            <Text style={styles.resetButtonText}>
-              Reset {selectedPeriod === "today" ? "Day" : selectedPeriod}
-            </Text>
+            <Text style={styles.resetButtonText}>Reset Day</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -292,30 +208,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: theme.spacing.lg,
     paddingBottom: theme.spacing.xxl,
-  },
-  periodSelector: {
-    flexDirection: "row",
-    backgroundColor: theme.colors.card,
-    borderRadius: theme.radius.lg,
-    padding: theme.spacing.xs,
-    marginBottom: theme.spacing.lg,
-  },
-  periodButton: {
-    flex: 1,
-    paddingVertical: theme.spacing.sm,
-    alignItems: "center",
-    borderRadius: theme.radius.md,
-  },
-  periodButtonActive: {
-    backgroundColor: theme.colors.accent,
-  },
-  periodButtonText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-    color: theme.colors.text.secondary,
-  },
-  periodButtonTextActive: {
-    color: theme.colors.background,
   },
   dateHeader: {
     fontSize: theme.typography.fontSize.xl,

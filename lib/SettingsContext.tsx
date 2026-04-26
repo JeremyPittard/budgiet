@@ -14,6 +14,10 @@ interface SettingsContextType {
   setCarryoverBalance: (balance: number) => Promise<void>;
   carryoverDays: number;
   setCarryoverDays: (days: number) => Promise<void>;
+  carryoverDebt: number;
+  setCarryoverDebt: (debt: number) => Promise<void>;
+  carryoverAppliesTo: 'hard' | 'soft';
+  setCarryoverAppliesTo: (appliesTo: 'hard' | 'soft') => Promise<void>;
   refreshSettings: () => Promise<void>;
   loading: boolean;
 }
@@ -39,6 +43,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const [carryoverEnabled, setCarryoverEnabledState] = useState<boolean>(true);
   const [carryoverBalance, setCarryoverBalance] = useState<number>(0);
   const [carryoverDays, setCarryoverDays] = useState<number>(0);
+  const [carryoverDebt, setCarryoverDebt] = useState<number>(0);
+  const [carryoverAppliesTo, setCarryoverAppliesToState] = useState<'hard' | 'soft'>('soft');
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadSettings = useCallback(async () => {
@@ -68,6 +74,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       const carryoverDaysStr = await getSetting('carryover_days');
       const carryoverDays = carryoverDaysStr ? parseInt(carryoverDaysStr, 10) : 0;
       setCarryoverDays(carryoverDays);
+
+      const carryoverDebtStr = await getSetting('carryover_debt');
+      const carryoverDebt = carryoverDebtStr ? parseFloat(carryoverDebtStr) : 0;
+      setCarryoverDebt(carryoverDebt);
+
+      const carryoverAppliesToStr = await getSetting('carryover_applies_to');
+      const carryoverAppliesTo = (carryoverAppliesToStr === 'hard' ? 'hard' : 'soft') as 'hard' | 'soft';
+      setCarryoverAppliesToState(carryoverAppliesTo);
     } catch (error) {
       console.error('Error loading settings:', error);
       setDailyTarget(50.00);
@@ -76,6 +90,8 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       setCarryoverEnabledState(true);
       setCarryoverBalance(0);
       setCarryoverDays(0);
+      setCarryoverDebt(0);
+      setCarryoverAppliesToState('soft');
     } finally {
       setLoading(false);
     }
@@ -145,6 +161,26 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, []);
 
+  const updateCarryoverDebt = useCallback(async (debt: number) => {
+    try {
+      await setSetting('carryover_debt', debt.toFixed(2));
+      setCarryoverDebt(debt);
+    } catch (error) {
+      console.error('Error updating carryover debt:', error);
+      throw error;
+    }
+  }, []);
+
+  const updateCarryoverAppliesTo = useCallback(async (appliesTo: 'hard' | 'soft') => {
+    try {
+      await setSetting('carryover_applies_to', appliesTo);
+      setCarryoverAppliesToState(appliesTo);
+    } catch (error) {
+      console.error('Error updating carryover applies to:', error);
+      throw error;
+    }
+  }, []);
+
   const value = useMemo<SettingsContextType>(() => ({
     dailyTarget,
     setDailyTarget: updateDailyTarget,
@@ -158,9 +194,13 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     setCarryoverBalance: updateCarryoverBalance,
     carryoverDays,
     setCarryoverDays: updateCarryoverDays,
+    carryoverDebt,
+    setCarryoverDebt: updateCarryoverDebt,
+    carryoverAppliesTo,
+    setCarryoverAppliesTo: updateCarryoverAppliesTo,
     refreshSettings: loadSettings,
     loading,
-  }), [dailyTarget, dayStartHour, hardCap, carryoverEnabled, carryoverBalance, carryoverDays, loading, updateDailyTarget, updateDayStartHour, updateHardCap, updateCarryoverEnabled, updateCarryoverBalance, updateCarryoverDays, loadSettings]);
+  }), [dailyTarget, dayStartHour, hardCap, carryoverEnabled, carryoverBalance, carryoverDays, carryoverDebt, carryoverAppliesTo, loading, updateDailyTarget, updateDayStartHour, updateHardCap, updateCarryoverEnabled, updateCarryoverBalance, updateCarryoverDays, updateCarryoverDebt, updateCarryoverAppliesTo, loadSettings]);
 
   return (
     <SettingsContext.Provider value={value}>
