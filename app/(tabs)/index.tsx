@@ -1,98 +1,230 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Alert,
+  FlatList,
+  RefreshControl,
+  Linking,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { format } from 'date-fns';
+import { Ionicons } from '@expo/vector-icons';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { theme, Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useDailySummary } from '@/lib/useDailySummary';
+import { useEntries } from '@/lib/useEntries';
+import { useSettings } from '@/lib/useSettings';
 
-export default function HomeScreen() {
+import { BudgetRing } from '@/components/BudgetRing';
+import { EntryRow } from '@/components/EntryRow';
+import { QuickAddForm } from '@/components/QuickAddForm';
+import { EmptyState } from '@/components/EmptyState';
+
+export default function TodayScreen() {
+  const colorScheme = useColorScheme();
+  const { todayEntries, todayTotal, addEntry, deleteEntry, refreshToday, loading } = useEntries();
+  const { dailyTarget, remaining, isOverBudget, progress, progressColor, isTargetSet } = useDailySummary();
+  const { refreshSettings } = useSettings();
+  const [refreshing, setRefreshing] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshToday();
+      refreshSettings();
+    }, [refreshToday, refreshSettings])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshToday();
+    setRefreshing(false);
+  }, [refreshToday]);
+
+  const handleAddEntry = useCallback(async (amount: number, label: string) => {
+    try {
+      await addEntry(amount, label);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add entry');
+    }
+  }, [addEntry]);
+
+  const handleDeleteEntry = useCallback(async (id: number) => {
+    try {
+      await deleteEntry(id);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete entry');
+    }
+  }, [deleteEntry]);
+
+  const handleResetDay = useCallback(() => {
+    Alert.alert(
+      'Reset Today',
+      'Are you sure you want to delete all entries for today?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete Today', 
+          style: 'destructive',
+          onPress: async () => {
+            for (const entry of todayEntries) {
+              await deleteEntry(entry.id);
+            }
+          },
+        },
+      ]
+    );
+  }, [todayEntries, deleteEntry]);
+
+  const openSettings = () => {
+    Linking.openURL('track-bud://settings');
+  };
+
+  const todayDate = format(new Date(), 'EEEE, MMMM d');
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'dark'].background }]} edges={['top']}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={theme.colors.accent}
+          />
+        }
+      >
+        {/* Date Header */}
+        <Text style={styles.dateHeader}>{todayDate}</Text>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* Budget Ring / Summary Card */}
+        <View style={styles.card}>
+          {!isTargetSet ? (
+            <View style={styles.noTargetBanner}>
+              <Ionicons name="warning-outline" size={24} color={theme.colors.progress.over80Percent} />
+              <Text style={styles.noTargetText}>
+                Set a daily target in Settings
+              </Text>
+              <TouchableOpacity onPress={openSettings} style={styles.noTargetButton}>
+                <Text style={styles.noTargetButtonText}>Go to Settings</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <BudgetRing
+              spent={todayTotal}
+              remaining={remaining ?? 0}
+              target={dailyTarget ?? 50}
+              isOverBudget={isOverBudget}
+              progress={progress}
+              progressColor={progressColor}
+            />
+          )}
+        </View>
+
+        {/* Quick Add Form */}
+        <View style={styles.section}>
+          <QuickAddForm onAdd={handleAddEntry} />
+        </View>
+
+        {/* Today's Entries */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Today&apos;s Entries</Text>
+          {todayEntries.length === 0 ? (
+            <EmptyState message="No expenses yet today" />
+          ) : (
+            todayEntries.map((entry) => (
+              <EntryRow
+                key={entry.id}
+                id={entry.id}
+                amount={entry.amount}
+                label={entry.label}
+                createdAt={entry.created_at}
+                onDelete={handleDeleteEntry}
+              />
+            ))
+          )}
+        </View>
+
+        {/* Reset Day Button */}
+        {todayEntries.length > 0 && (
+          <TouchableOpacity 
+            style={styles.resetButton}
+            onPress={handleResetDay}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.resetButtonText}>Reset Day</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xxl,
+  },
+  dateHeader: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xl,
+  },
+  card: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.xl,
+    marginBottom: theme.spacing.xl,
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  noTargetBanner: {
+    alignItems: 'center',
+    gap: theme.spacing.md,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  noTargetText: {
+    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.text.secondary,
+  },
+  noTargetButton: {
+    backgroundColor: theme.colors.accent,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+  },
+  noTargetButtonText: {
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.background,
+  },
+  section: {
+    marginBottom: theme.spacing.xl,
+  },
+  sectionTitle: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
+  },
+  resetButton: {
+    alignSelf: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  resetButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.muted,
   },
 });

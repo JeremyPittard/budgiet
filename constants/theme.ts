@@ -1,53 +1,91 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
-export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+// Theme constants matching the spec's design direction
+export const theme = {
+  // Colors
+  colors: {
+    // Backgrounds
+    background: '#0f0f0f', // Deep charcoal
+    card: '#1a1a1a',       // Card surfaces
+    
+    // Accent (electric teal)
+    accent: '#00d4aa',
+    
+    // Progress ring colors
+    progress: {
+      underTarget: '#22c55e',   // green
+      over80Percent: '#f59e0b', // amber
+      overTarget: '#ef4444',    // red
+    },
+    
+    // Text
+    text: {
+      primary: '#ffffff',
+      secondary: '#9ca3af',
+      muted: '#6b7280',
+    },
+    
+    // Other
+    border: '#374151',
+    error: '#ef4444',
   },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+  
+  // Spacing
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,   // base unit
+    xl: 24,   // section gaps
+    xxl: 32,
+  },
+  
+  // Typography (System font stack with weight contrast)
+  typography: {
+    fontFamily: 'System',
+    fontWeight: {
+      regular: '400',
+      medium: '500',
+      semibold: '600',
+      bold: '700',
+    },
+    fontSize: {
+      xs: 10,
+      sm: 12,
+      md: 14,
+      lg: 16,
+      xl: 18,
+      xxl: 20,
+      xxxl: 24,
+      huge: 32,
+      massive: 48,
+    },
+  },
+  
+  // Border radius
+  radius: {
+    sm: 6,
+    md: 8,
+    lg: 12,
+    xl: 16,
+    full: 9999,
   },
 };
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+// Export Colors for React Navigation tabs (light/dark compatible)
+export const Colors = {
+  light: {
+    tint: theme.colors.accent,
+    background: '#ffffff',
+    card: '#f3f4f6',
+    text: '#000000',
+    textSecondary: '#6b7280',
+    border: '#e5e7eb',
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
+  dark: {
+    tint: theme.colors.accent,
+    background: theme.colors.background,
+    card: theme.colors.card,
+    text: theme.colors.text.primary,
+    textSecondary: theme.colors.text.secondary,
+    border: theme.colors.border,
   },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+};
