@@ -1,4 +1,4 @@
-# Track Bud
+# Budgiet
 
 A personal daily budget tracker app built with React Native + Expo. Track your daily spending, see how much budget remains, and review your spending history.
 
@@ -45,12 +45,12 @@ npx expo start --web
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `npx expo start` | Start Metro dev server |
+| Command                | Description              |
+| ---------------------- | ------------------------ |
+| `npx expo start`       | Start Metro dev server   |
 | `npx expo run:android` | Build and run on Android |
-| `npx expo start --web` | Run web build |
-| `npm run lint` | Run ESLint |
+| `npx expo start --web` | Run web build            |
+| `npm run lint`         | Run ESLint               |
 
 ## Project Structure
 
