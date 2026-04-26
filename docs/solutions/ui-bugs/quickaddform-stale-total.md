@@ -1,7 +1,7 @@
 ---
 title: QuickAddForm amount remaining not updating
 date: 2026-04-26
-module: track-bud
+module: budgiet
 problem_type: ui_bug
 component: tooling
 symptoms:
@@ -20,10 +20,12 @@ tags: [react-state, shared-context, today-screen]
 The QuickAddForm component on the Today screen was not updating the "amount remaining" display in real-time when entries were added. Users had to tab through other periods and return to "Today" to see the updated total.
 
 ## Symptoms
+
 - Adding an expense via QuickAddForm does not immediately reflect in the remaining amount display
 - The BudgetRing component shows stale total until the user changes periods
 
 ## What Didn't Work
+
 - Multiple independent `useEntries()` hooks created separate state instances, preventing shared state updates
 - QuickAddForm had its own `useEffect` with `getTodayTotal()` call to fetch the current total on mount
 
@@ -38,7 +40,7 @@ The fix involved three changes:
 interface QuickAddFormProps {
   onAdd: (amount: number, label: string, note?: string) => void;
   dailyTarget: number;
-  currentTotal: number;  // NEW: prop to receive total from parent
+  currentTotal: number; // NEW: prop to receive total from parent
 }
 ```
 
@@ -50,8 +52,8 @@ The original code had a `setCurrentTotal` call that was working around the stale
 
 ```typescript
 // app/(tabs)/index.tsx
-<QuickAddForm 
-  onAdd={handleAddEntry} 
+<QuickAddForm
+  onAdd={handleAddEntry}
   dailyTarget={dailyTarget ?? 50}
   currentTotal={total}  // Single source of truth from shared hook
 />
@@ -70,5 +72,6 @@ This follows the React pattern of **lifting state up** — the parent component 
 - **Avoid useEffect data fetching in child components**: If a child needs data that the parent already has, pass it as a prop
 
 ## Related Issues
+
 - See `app/(tabs)/index.tsx` for the correct pattern of passing `total` from `usePeriodSummary`
 - See `lib/usePeriodSummary.ts` for the single source of truth for period data

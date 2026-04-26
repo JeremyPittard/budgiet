@@ -1,54 +1,73 @@
-import React, { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
+import { Ionicons } from "@expo/vector-icons";
+import { format } from "date-fns";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
   Alert,
-  RefreshControl,
   Linking,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { format } from 'date-fns';
-import { Ionicons } from '@expo/vector-icons';
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { theme, Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useSettings } from '@/lib/useSettings';
-import { usePeriodSummary } from '@/lib/usePeriodSummary';
-import { useCarryover } from '@/lib/useCarryover';
-import { addEntry as addEntryToDb, deleteEntry as deleteEntryFromDb } from '@/lib/db';
+import { Colors, theme } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import {
+  addEntry as addEntryToDb,
+  deleteEntry as deleteEntryFromDb,
+} from "@/lib/db";
+import { useCarryover } from "@/lib/useCarryover";
+import { usePeriodSummary } from "@/lib/usePeriodSummary";
+import { useSettings } from "@/lib/useSettings";
 
-import { BudgetRing } from '@/components/BudgetRing';
-import { EntryRow } from '@/components/EntryRow';
-import { QuickAddForm } from '@/components/QuickAddForm';
-import { EmptyState } from '@/components/EmptyState';
+import { BudgetRing } from "@/components/BudgetRing";
+import { EmptyState } from "@/components/EmptyState";
+import { EntryRow } from "@/components/EntryRow";
+import { QuickAddForm } from "@/components/QuickAddForm";
 
-type PeriodType = 'today' | 'week' | 'fortnight' | 'month' | 'year';
+type PeriodType = "today" | "week" | "fortnight" | "month" | "year";
 
 const PERIODS: { key: PeriodType; label: string }[] = [
-  { key: 'today', label: 'Today' },
-  { key: 'week', label: 'Week' },
-  { key: 'fortnight', label: 'Fortnight' },
-  { key: 'month', label: 'Month' },
-  { key: 'year', label: 'Year' },
+  { key: "today", label: "Today" },
+  { key: "week", label: "Week" },
+  { key: "fortnight", label: "Fortnight" },
+  { key: "month", label: "Month" },
+  { key: "year", label: "Year" },
 ];
 
 export default function TodayScreen() {
   const colorScheme = useColorScheme();
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('today');
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>("today");
   const { dailyTarget, refreshSettings } = useSettings();
-  const { periodTarget, total, remaining, isOverBudget, progress, progressColor, isTargetSet, hardCapAmount, entries, refresh } = usePeriodSummary(selectedPeriod);
-  const { carryoverBalance, daysRemaining, carryoverEnabled, effectiveRemaining } = useCarryover();
-  
+  const {
+    periodTarget,
+    total,
+    remaining,
+    isOverBudget,
+    progress,
+    progressColor,
+    isTargetSet,
+    hardCapAmount,
+    entries,
+    refresh,
+  } = usePeriodSummary(selectedPeriod);
+  const {
+    carryoverBalance,
+    daysRemaining,
+    carryoverEnabled,
+    effectiveRemaining,
+  } = useCarryover();
+
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       refreshSettings();
-    }, [refreshSettings])
+    }, [refreshSettings]),
   );
 
   const onRefresh = useCallback(async () => {
@@ -57,70 +76,82 @@ export default function TodayScreen() {
     setRefreshing(false);
   }, [refreshSettings]);
 
-  const handleAddEntry = useCallback(async (amount: number, label: string, note?: string) => {
-    try {
-      await addEntryToDb(amount, label, note);
-      refresh();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to add entry');
-    }
-  }, [refresh]);
+  const handleAddEntry = useCallback(
+    async (amount: number, label: string, note?: string) => {
+      try {
+        await addEntryToDb(amount, label, note);
+        refresh();
+      } catch (error) {
+        Alert.alert("Error", "Failed to add entry");
+      }
+    },
+    [refresh],
+  );
 
-  const handleDeleteEntry = useCallback(async (id: number) => {
-    try {
-      await deleteEntryFromDb(id);
-      refresh();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to delete entry');
-    }
-  }, [refresh]);
+  const handleDeleteEntry = useCallback(
+    async (id: number) => {
+      try {
+        await deleteEntryFromDb(id);
+        refresh();
+      } catch (error) {
+        Alert.alert("Error", "Failed to delete entry");
+      }
+    },
+    [refresh],
+  );
 
   const handleResetPeriod = useCallback(() => {
     Alert.alert(
-      `Reset ${selectedPeriod === 'today' ? 'Today' : 'This ' + selectedPeriod}`,
+      `Reset ${selectedPeriod === "today" ? "Today" : "This " + selectedPeriod}`,
       `Are you sure you want to delete all entries for this period?`,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
           onPress: async () => {
             for (const entry of entries) {
               await deleteEntryFromDb(entry.id);
             }
           },
         },
-      ]
+      ],
     );
   }, [entries, selectedPeriod]);
 
   const openSettings = () => {
-    Linking.openURL('track-bud://settings');
+    Linking.openURL("budgiet://settings");
   };
 
   const getPeriodLabel = () => {
     switch (selectedPeriod) {
-      case 'today':
-        return format(new Date(), 'EEEE, MMMM d');
-      case 'week':
-        return 'This Week';
-      case 'fortnight':
-        return 'This Fortnight';
-      case 'month':
-        return 'This Month';
-      case 'year':
-        return 'This Year';
+      case "today":
+        return format(new Date(), "EEEE, MMMM d");
+      case "week":
+        return "This Week";
+      case "fortnight":
+        return "This Fortnight";
+      case "month":
+        return "This Month";
+      case "year":
+        return "This Year";
     }
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'dark'].background }]} edges={['top']}>
-      <ScrollView 
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: Colors[colorScheme ?? "dark"].background },
+      ]}
+      edges={["top"]}
+    >
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={theme.colors.accent}
           />
@@ -140,7 +171,8 @@ export default function TodayScreen() {
               <Text
                 style={[
                   styles.periodButtonText,
-                  selectedPeriod === period.key && styles.periodButtonTextActive,
+                  selectedPeriod === period.key &&
+                    styles.periodButtonTextActive,
                 ]}
               >
                 {period.label}
@@ -156,15 +188,22 @@ export default function TodayScreen() {
         <View style={styles.card}>
           {!isTargetSet ? (
             <View style={styles.noTargetBanner}>
-              <Ionicons name="warning-outline" size={24} color={theme.colors.progress.over80Percent} />
+              <Ionicons
+                name="warning-outline"
+                size={24}
+                color={theme.colors.progress.over80Percent}
+              />
               <Text style={styles.noTargetText}>
                 Set a daily target in Settings
               </Text>
-              <TouchableOpacity onPress={openSettings} style={styles.noTargetButton}>
+              <TouchableOpacity
+                onPress={openSettings}
+                style={styles.noTargetButton}
+              >
                 <Text style={styles.noTargetButtonText}>Go to Settings</Text>
               </TouchableOpacity>
             </View>
-) : (
+          ) : (
             <>
               <BudgetRing
                 spent={total}
@@ -175,25 +214,27 @@ export default function TodayScreen() {
                 progressColor={progressColor}
                 hardCapAmount={hardCapAmount ?? undefined}
               />
-              {selectedPeriod === 'today' && carryoverEnabled && carryoverBalance > 0 && (
-                <View style={styles.carryoverDisplay}>
-                  <Text style={styles.carryoverText}>
-                    +${carryoverBalance.toFixed(2)} carryover
-                  </Text>
-                  <Text style={styles.carryoverDaysText}>
-                    {daysRemaining} days left
-                  </Text>
-                </View>
-              )}
+              {selectedPeriod === "today" &&
+                carryoverEnabled &&
+                carryoverBalance > 0 && (
+                  <View style={styles.carryoverDisplay}>
+                    <Text style={styles.carryoverText}>
+                      +${carryoverBalance.toFixed(2)} carryover
+                    </Text>
+                    <Text style={styles.carryoverDaysText}>
+                      {daysRemaining} days left
+                    </Text>
+                  </View>
+                )}
             </>
           )}
-          </View>
+        </View>
 
         {/* Quick Add Form - Only for Today */}
-        {selectedPeriod === 'today' && (
+        {selectedPeriod === "today" && (
           <View style={styles.section}>
-            <QuickAddForm 
-              onAdd={handleAddEntry} 
+            <QuickAddForm
+              onAdd={handleAddEntry}
               dailyTarget={dailyTarget ?? 50}
               currentTotal={total}
             />
@@ -203,7 +244,9 @@ export default function TodayScreen() {
         {/* Entries for Period */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            {selectedPeriod === 'today' ? "Today's Entries" : `This ${selectedPeriod}`}
+            {selectedPeriod === "today"
+              ? "Today's Entries"
+              : `This ${selectedPeriod}`}
           </Text>
           {entries.length === 0 ? (
             <EmptyState message={`No expenses this ${selectedPeriod}`} />
@@ -224,12 +267,14 @@ export default function TodayScreen() {
 
         {/* Reset Period Button */}
         {entries.length > 0 && (
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.resetButton}
             onPress={handleResetPeriod}
             activeOpacity={0.7}
           >
-            <Text style={styles.resetButtonText}>Reset {selectedPeriod === 'today' ? 'Day' : selectedPeriod}</Text>
+            <Text style={styles.resetButtonText}>
+              Reset {selectedPeriod === "today" ? "Day" : selectedPeriod}
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -249,7 +294,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
   periodSelector: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: theme.colors.card,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.xs,
@@ -258,7 +303,7 @@ const styles = StyleSheet.create({
   periodButton: {
     flex: 1,
     paddingVertical: theme.spacing.sm,
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: theme.radius.md,
   },
   periodButtonActive: {
@@ -283,10 +328,10 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     padding: theme.spacing.xl,
     marginBottom: theme.spacing.xl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   noTargetBanner: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: theme.spacing.md,
   },
   noTargetText: {
@@ -314,7 +359,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   resetButton: {
-    alignSelf: 'center',
+    alignSelf: "center",
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
   },
@@ -324,7 +369,7 @@ const styles = StyleSheet.create({
   },
   carryoverDisplay: {
     marginTop: theme.spacing.md,
-    alignItems: 'center',
+    alignItems: "center",
   },
   carryoverText: {
     fontSize: theme.typography.fontSize.sm,

@@ -1,50 +1,93 @@
-# Welcome to your Expo app 👋
+# Track Bud
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A personal daily budget tracker app built with React Native + Expo. Track your daily spending, see how much budget remains, and review your spending history.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Daily Budget Tracking** — Set a daily spending target and log expenses throughout the day
+- **Progress Ring** — Visual indicator showing spent/target ratio with color coding (green → amber → red)
+- **Quick Add** — Fast expense entry with optional note
+- **History** — Review past days grouped by week, expand to see individual entries
+- **Rollover** — Carry overspend to tomorrow's budget (with confirmation)
+- **Swipe to Delete** — Remove entries with swipe gesture + confirmation
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+- Expo SDK 54 + React Native 0.81
+- expo-router (file-based routing)
+- expo-sqlite for local storage
+- date-fns for date handling
+- @expo/vector-icons (Ionicons)
 
-   ```bash
-   npx expo start
-   ```
+## Getting Started
 
-In the output, you'll find options to open the app in a
+### Prerequisites
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Node.js 18+
+- Android SDK (for Android builds)
+- Expo CLI
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Install & Run
 
 ```bash
-npm run reset-project
+# Install dependencies
+npm install
+
+# Start development server
+npx expo start
+
+# Run on Android device/emulator
+npx expo run:android
+
+# Run on web
+npx expo start --web
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Commands
 
-## Learn more
+| Command | Description |
+|---------|-------------|
+| `npx expo start` | Start Metro dev server |
+| `npx expo run:android` | Build and run on Android |
+| `npx expo start --web` | Run web build |
+| `npm run lint` | Run ESLint |
 
-To learn more about developing your project with Expo, look at the following resources:
+## Project Structure
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```
+app/
+  (tabs)/
+    index.tsx      # Today screen
+    history.tsx    # History screen
+    settings.tsx   # Settings screen
+  _layout.tsx      # Root layout + DB init
+components/
+  BudgetRing.tsx
+  EntryRow.tsx
+  QuickAddForm.tsx
+  DayAccordion.tsx
+  RolloverBanner.tsx
+  EmptyState.tsx
+lib/
+  db.ts            # SQLite + platform detection
+  db.native.ts     # SQLite implementation
+  db.web.ts        # localStorage fallback
+  formatters.ts    # Currency, date helpers
+hooks/
+  useEntries.ts    # Entries CRUD
+  useSettings.ts   # Settings read/write
+  useDailySummary.ts
+constants/
+  theme.ts         # Colors, spacing
+```
 
-## Join the community
+## Configuration
 
-Join our community of developers creating universal apps.
+- **Currency**: Hardcoded as AUD (`A$`)
+- **Date format**: ISO `YYYY-MM-DD` strings
+- **Theme**: Dark-first (`#0f0f0f` background)
+- **Platform-specific DB**: SQLite on native, localStorage on web
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## License
+
+MIT

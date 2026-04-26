@@ -1,7 +1,7 @@
 ---
 title: Period summary not updating after add/delete
 date: 2026-04-26
-module: track-bud
+module: budgiet
 problem_type: ui_bug
 component: tooling
 symptoms:
@@ -52,7 +52,7 @@ export function usePeriodSummary(period: Period) {
     refresh();
   }, [period]);
 
-  return { entries, loading, refresh };  // NEW: return refresh
+  return { entries, loading, refresh }; // NEW: return refresh
 }
 ```
 
@@ -64,12 +64,12 @@ export function usePeriodSummary(period: Period) {
 // app/(tabs)/index.tsx
 const handleAddEntry = async (amount: number, label: string, note?: string) => {
   await addEntryToDb({ amount, label, note, date: today });
-  refresh();  // NEW: refresh after add
+  refresh(); // NEW: refresh after add
 };
 
 const handleDeleteEntry = async (id: number) => {
   await deleteEntryFromDb(id);
-  refresh();  // NEW: refresh after delete
+  refresh(); // NEW: refresh after delete
 };
 ```
 
