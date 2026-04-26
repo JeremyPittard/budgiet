@@ -1,26 +1,32 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useSettings } from './useSettings';
 import { calculateProgress, getProgressColor } from './formatters';
-import { getEntriesByDateRange, getPeriodStartDate, getDaysInPeriod, Period } from './db';
+import { getEntriesByDateRange, getPeriodStartDate, getDaysInPeriod, getEffectiveToday, Period } from './db';
 
 export const usePeriodSummary = (period: Period) => {
   const { dailyTarget, dayStartHour, hardCap } = useSettings();
   const [entries, setEntries] = useState<Array<{ id: number; amount: number; label: string; date: string; created_at: string; note?: string }>>([]);
   const [loading, setLoading] = useState(true);
 
+  const refresh = useCallback(async () => {
+    try {
+      const startDate = getPeriodStartDate(period, dayStartHour);
+      const endDate = getEffectiveToday(dayStartHour);
+      const fetchedEntries = await getEntriesByDateRange(startDate, endDate);
+      setEntries(fetchedEntries);
+    } catch (error) {
+      console.error('Error refreshing entries:', error);
+    }
+  }, [period, dayStartHour]);
+
   useEffect(() => {
     const loadEntries = async () => {
       setLoading(true);
       try {
         const startDate = getPeriodStartDate(period, dayStartHour);
+        const endDate = getEffectiveToday(dayStartHour);
         
-        const days = getDaysInPeriod(period);
-        const now = new Date();
-        const end = new Date(now);
-        end.setDate(end.getDate() - (days - 1));
-        const endDateStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
-        
-        const fetchedEntries = await getEntriesByDateRange(startDate, endDateStr);
+        const fetchedEntries = await getEntriesByDateRange(startDate, endDate);
         setEntries(fetchedEntries);
       } catch (error) {
         console.error('Error loading period entries:', error);
@@ -85,5 +91,6 @@ export const usePeriodSummary = (period: Period) => {
     periodLabel,
     isTargetSet,
     loading,
-  }), [entries, total, periodTarget, hardCapAmount, remaining, isOverBudget, progress, progressColor, periodLabel, isTargetSet, loading]);
+    refresh,
+  }), [entries, total, periodTarget, hardCapAmount, remaining, isOverBudget, progress, progressColor, periodLabel, isTargetSet, loading, refresh]);
 };

@@ -95,3 +95,15 @@ Key steps:
 2. **Memoize context values** - Use `useMemo` to prevent the "Maximum update depth exceeded" error
 3. **Never call hooks in try/catch** - React hooks can't be called conditionally; context availability is handled at the use call site
 4. **Document state ownership** - Clearly indicate which components "own" shared state vs "consume" it
+5. **Pass data as props, don't fetch separately** - If a parent component already has data from a hook, pass it to children via props rather than having children fetch their own copy
+6. **When adding a new component, check for existing data sources** - Before adding a useEffect that loads data, check if the parent already has that data from a shared hook
+
+## Related Cases
+
+### QuickAddForm stale total (2026-04-26)
+QuickAddForm was fetching its own `getTodayTotal()` instead of using `total` from `usePeriodSummary()`. Fixed by adding `currentTotal` prop to QuickAddForm and passing `total` from parent.
+Files: `components/QuickAddForm.tsx`, `app/(tabs)/index.tsx`
+
+### usePeriodSummary missing refresh (2026-04-26)
+After adding/deleting entries, totals didn't update. Root cause: usePeriodSummary fetched on mount but had no refresh function. Fixed by adding `refresh` function to hook and calling it after DB operations.
+Files: `lib/usePeriodSummary.ts`, `app/(tabs)/index.tsx`

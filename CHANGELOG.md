@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0] - 2026-04-26
+
+### Added
+- Week period view (Today, Week, Fortnight, Month, Year)
+- Deficit carryover with 3-day limit
+- Carryover toggle in settings
+
+### Fixed
+- Period views now show correct entries (was showing $0)
+- QuickAddForm now updates totals in real-time after adding entries (was requiring tab switch)
+- Removed duplicate styles in QuickAddForm component
+
 ## [1.1.0] - 2026-04-26
 
 ### Added

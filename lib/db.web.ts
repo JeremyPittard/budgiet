@@ -1,7 +1,7 @@
 // Web fallback - uses localStorage
 const STORAGE_KEY = 'budget_tracker_data';
 
-export type Period = 'today' | 'fortnight' | 'month' | 'year';
+export type Period = 'today' | 'week' | 'fortnight' | 'month' | 'year';
 
 interface Entry {
   id: number;
@@ -51,6 +51,8 @@ const getEffectiveToday = (dayStartHour: number): string => {
   return `${year}-${month}-${day}`;
 };
 
+export { getEffectiveToday };
+
 const isLeapYear = (year: number): boolean => {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 };
@@ -60,6 +62,8 @@ export const getDaysInPeriod = (period: Period): number => {
   switch (period) {
     case 'today':
       return 1;
+    case 'week':
+      return 7;
     case 'fortnight':
       return 14;
     case 'month':
@@ -70,13 +74,14 @@ export const getDaysInPeriod = (period: Period): number => {
 };
 
 export const getPeriodStartDate = (period: Period, dayStartHour: number): string => {
-  const now = new Date();
+  const effectiveToday = getEffectiveToday(dayStartHour);
+  const effectiveTodayDate = new Date(effectiveToday + 'T00:00:00');
   const days = getDaysInPeriod(period);
-  now.setDate(now.getDate() - (days - 1));
+  effectiveTodayDate.setDate(effectiveTodayDate.getDate() - (days - 1));
   
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  const year = effectiveTodayDate.getFullYear();
+  const month = String(effectiveTodayDate.getMonth() + 1).padStart(2, '0');
+  const day = String(effectiveTodayDate.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 

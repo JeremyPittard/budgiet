@@ -18,6 +18,7 @@ import { theme, Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSettings } from '@/lib/useSettings';
 import { usePeriodSummary } from '@/lib/usePeriodSummary';
+import { useCarryover } from '@/lib/useCarryover';
 import { addEntry as addEntryToDb, deleteEntry as deleteEntryFromDb } from '@/lib/db';
 
 import { BudgetRing } from '@/components/BudgetRing';
@@ -25,10 +26,11 @@ import { EntryRow } from '@/components/EntryRow';
 import { QuickAddForm } from '@/components/QuickAddForm';
 import { EmptyState } from '@/components/EmptyState';
 
-type PeriodType = 'today' | 'fortnight' | 'month' | 'year';
+type PeriodType = 'today' | 'week' | 'fortnight' | 'month' | 'year';
 
 const PERIODS: { key: PeriodType; label: string }[] = [
   { key: 'today', label: 'Today' },
+  { key: 'week', label: 'Week' },
   { key: 'fortnight', label: 'Fortnight' },
   { key: 'month', label: 'Month' },
   { key: 'year', label: 'Year' },
@@ -38,7 +40,8 @@ export default function TodayScreen() {
   const colorScheme = useColorScheme();
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('today');
   const { dailyTarget, refreshSettings } = useSettings();
-  const { periodTarget, total, remaining, isOverBudget, progress, progressColor, isTargetSet, hardCapAmount, entries } = usePeriodSummary(selectedPeriod);
+  const { periodTarget, total, remaining, isOverBudget, progress, progressColor, isTargetSet, hardCapAmount, entries, refresh } = usePeriodSummary(selectedPeriod);
+  const { carryoverBalance, daysRemaining, carryoverEnabled, effectiveRemaining } = useCarryover();
   
   const [refreshing, setRefreshing] = useState(false);
 
@@ -57,18 +60,20 @@ export default function TodayScreen() {
   const handleAddEntry = useCallback(async (amount: number, label: string, note?: string) => {
     try {
       await addEntryToDb(amount, label, note);
+      refresh();
     } catch (error) {
       Alert.alert('Error', 'Failed to add entry');
     }
-  }, []);
+  }, [refresh]);
 
   const handleDeleteEntry = useCallback(async (id: number) => {
     try {
       await deleteEntryFromDb(id);
+      refresh();
     } catch (error) {
       Alert.alert('Error', 'Failed to delete entry');
     }
-  }, []);
+  }, [refresh]);
 
   const handleResetPeriod = useCallback(() => {
     Alert.alert(
@@ -97,6 +102,8 @@ export default function TodayScreen() {
     switch (selectedPeriod) {
       case 'today':
         return format(new Date(), 'EEEE, MMMM d');
+      case 'week':
+        return 'This Week';
       case 'fortnight':
         return 'This Fortnight';
       case 'month':
@@ -157,25 +164,38 @@ export default function TodayScreen() {
                 <Text style={styles.noTargetButtonText}>Go to Settings</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <BudgetRing
-              spent={total}
-              remaining={remaining ?? 0}
-              target={periodTarget ?? 50}
-              isOverBudget={isOverBudget}
-              progress={progress}
-              progressColor={progressColor}
-              hardCapAmount={hardCapAmount ?? undefined}
-            />
+) : (
+            <>
+              <BudgetRing
+                spent={total}
+                remaining={remaining ?? 0}
+                target={periodTarget ?? 50}
+                isOverBudget={isOverBudget}
+                progress={progress}
+                progressColor={progressColor}
+                hardCapAmount={hardCapAmount ?? undefined}
+              />
+              {selectedPeriod === 'today' && carryoverEnabled && carryoverBalance > 0 && (
+                <View style={styles.carryoverDisplay}>
+                  <Text style={styles.carryoverText}>
+                    +${carryoverBalance.toFixed(2)} carryover
+                  </Text>
+                  <Text style={styles.carryoverDaysText}>
+                    {daysRemaining} days left
+                  </Text>
+                </View>
+              )}
+            </>
           )}
-        </View>
+          </View>
 
         {/* Quick Add Form - Only for Today */}
         {selectedPeriod === 'today' && (
           <View style={styles.section}>
             <QuickAddForm 
               onAdd={handleAddEntry} 
-              dailyTarget={dailyTarget ?? 50} 
+              dailyTarget={dailyTarget ?? 50}
+              currentTotal={total}
             />
           </View>
         )}
@@ -301,5 +321,18 @@ const styles = StyleSheet.create({
   resetButtonText: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text.muted,
+  },
+  carryoverDisplay: {
+    marginTop: theme.spacing.md,
+    alignItems: 'center',
+  },
+  carryoverText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.accent,
+  },
+  carryoverDaysText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.text.secondary,
   },
 });

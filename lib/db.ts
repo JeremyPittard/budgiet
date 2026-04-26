@@ -151,4 +151,4 @@ export const resetAllData = async () => {
 
 export const db = null;
 
-export { getDaysInPeriod, getPeriodStartDate, getEntriesByDateRange, Period } from './db.native';
+export { getDaysInPeriod, getPeriodStartDate, getEntriesByDateRange, getEffectiveToday, Period } from './db.native';

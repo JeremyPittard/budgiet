@@ -1,27 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { theme } from '@/constants/theme';
-import { getTodayTotal } from '@/lib/db';
 
 interface QuickAddFormProps {
   onAdd: (amount: number, label: string, note?: string) => void;
   dailyTarget: number;
+  currentTotal: number;
 }
 
-export const QuickAddForm: React.FC<QuickAddFormProps> = ({ onAdd, dailyTarget }) => {
+export const QuickAddForm: React.FC<QuickAddFormProps> = ({ onAdd, dailyTarget, currentTotal }) => {
   const [amount, setAmount] = useState('');
   const [label, setLabel] = useState('');
   const [note, setNote] = useState('');
-  const [currentTotal, setCurrentTotal] = useState(0);
   const [noteRequired, setNoteRequired] = useState(false);
-
-  useEffect(() => {
-    const loadTodayTotal = async () => {
-      const total = await getTodayTotal();
-      setCurrentTotal(total);
-    };
-    loadTodayTotal();
-  }, []);
 
   const handleAmountChange = useCallback((value: string) => {
     setAmount(value);
@@ -60,7 +51,6 @@ export const QuickAddForm: React.FC<QuickAddFormProps> = ({ onAdd, dailyTarget }
     setLabel('');
     setNote('');
     setNoteRequired(false);
-    setCurrentTotal(newTotal);
   };
 
   const showNoteError = noteRequired && !note.trim();
@@ -118,38 +108,10 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     borderRadius: theme.radius.lg,
   },
-inputsRow: {
+  inputsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
-  },
-  currencyPrefix: {
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.text.secondary,
-    marginRight: theme.spacing.xs,
-  },
-input: {
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.text.primary,
-    minWidth: 60,
-    maxWidth: 80,
-    textAlign: 'center',
-    minHeight: 42,
-  },
-  inputError: {
-    borderWidth: 1,
-    borderColor: theme.colors.error,
-  },
-  button: {
-    backgroundColor: theme.colors.accent,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    borderRadius: theme.radius.md,
   },
   currencyPrefix: {
     fontSize: theme.typography.fontSize.md,

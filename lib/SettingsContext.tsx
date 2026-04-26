@@ -8,6 +8,12 @@ interface SettingsContextType {
   setDayStartHour: (hour: number) => Promise<void>;
   hardCap: number | null;
   setHardCap: (cap: number) => Promise<void>;
+  carryoverEnabled: boolean;
+  setCarryoverEnabled: (enabled: boolean) => Promise<void>;
+  carryoverBalance: number;
+  setCarryoverBalance: (balance: number) => Promise<void>;
+  carryoverDays: number;
+  setCarryoverDays: (days: number) => Promise<void>;
   refreshSettings: () => Promise<void>;
   loading: boolean;
 }
@@ -30,6 +36,9 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const [dailyTarget, setDailyTarget] = useState<number | null>(null);
   const [dayStartHour, setDayStartHour] = useState<number>(4);
   const [hardCap, setHardCapState] = useState<number | null>(null);
+  const [carryoverEnabled, setCarryoverEnabledState] = useState<boolean>(true);
+  const [carryoverBalance, setCarryoverBalance] = useState<number>(0);
+  const [carryoverDays, setCarryoverDays] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadSettings = useCallback(async () => {
@@ -47,11 +56,26 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       const defaultHardCap = target * 1.5;
       const hardCap = hardCapStr ? parseFloat(hardCapStr) : defaultHardCap;
       setHardCapState(hardCap);
+
+      const carryoverEnabledStr = await getSetting('carryover_enabled');
+      const carryoverEnabled = carryoverEnabledStr === '0' ? false : true;
+      setCarryoverEnabledState(carryoverEnabled);
+
+      const carryoverBalanceStr = await getSetting('carryover_balance');
+      const carryoverBalance = carryoverBalanceStr ? parseFloat(carryoverBalanceStr) : 0;
+      setCarryoverBalance(carryoverBalance);
+
+      const carryoverDaysStr = await getSetting('carryover_days');
+      const carryoverDays = carryoverDaysStr ? parseInt(carryoverDaysStr, 10) : 0;
+      setCarryoverDays(carryoverDays);
     } catch (error) {
       console.error('Error loading settings:', error);
       setDailyTarget(50.00);
       setDayStartHour(4);
       setHardCapState(75.00);
+      setCarryoverEnabledState(true);
+      setCarryoverBalance(0);
+      setCarryoverDays(0);
     } finally {
       setLoading(false);
     }
@@ -91,6 +115,36 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, []);
 
+  const updateCarryoverEnabled = useCallback(async (enabled: boolean) => {
+    try {
+      await setSetting('carryover_enabled', enabled ? '1' : '0');
+      setCarryoverEnabledState(enabled);
+    } catch (error) {
+      console.error('Error updating carryover enabled:', error);
+      throw error;
+    }
+  }, []);
+
+  const updateCarryoverBalance = useCallback(async (balance: number) => {
+    try {
+      await setSetting('carryover_balance', balance.toFixed(2));
+      setCarryoverBalance(balance);
+    } catch (error) {
+      console.error('Error updating carryover balance:', error);
+      throw error;
+    }
+  }, []);
+
+  const updateCarryoverDays = useCallback(async (days: number) => {
+    try {
+      await setSetting('carryover_days', days.toString());
+      setCarryoverDays(days);
+    } catch (error) {
+      console.error('Error updating carryover days:', error);
+      throw error;
+    }
+  }, []);
+
   const value = useMemo<SettingsContextType>(() => ({
     dailyTarget,
     setDailyTarget: updateDailyTarget,
@@ -98,9 +152,15 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     setDayStartHour: updateDayStartHour,
     hardCap,
     setHardCap: updateHardCap,
+    carryoverEnabled,
+    setCarryoverEnabled: updateCarryoverEnabled,
+    carryoverBalance,
+    setCarryoverBalance: updateCarryoverBalance,
+    carryoverDays,
+    setCarryoverDays: updateCarryoverDays,
     refreshSettings: loadSettings,
     loading,
-  }), [dailyTarget, dayStartHour, hardCap, loading, updateDailyTarget, updateDayStartHour, updateHardCap, loadSettings]);
+  }), [dailyTarget, dayStartHour, hardCap, carryoverEnabled, carryoverBalance, carryoverDays, loading, updateDailyTarget, updateDayStartHour, updateHardCap, updateCarryoverEnabled, updateCarryoverBalance, updateCarryoverDays, loadSettings]);
 
   return (
     <SettingsContext.Provider value={value}>

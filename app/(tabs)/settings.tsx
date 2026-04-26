@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -25,6 +25,10 @@ export default function SettingsScreen() {
     setDayStartHour,
     hardCap,
     setHardCap,
+    carryoverEnabled,
+    setCarryoverEnabled,
+    carryoverBalance,
+    carryoverDays,
     loading,
   } = useSettings();
   const [inputValue, setInputValue] = useState("");
@@ -166,6 +170,43 @@ export default function SettingsScreen() {
                 <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.label}>Carryover Budget</Text>
+            <Text style={styles.helperText}>
+              Unused daily budget carries to next day (max 3 days)
+            </Text>
+            <View style={styles.inputRow}>
+              <Text style={styles.toggleLabel}>
+                {carryoverEnabled ? 'Enabled' : 'Disabled'}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  carryoverEnabled && styles.toggleButtonEnabled,
+                ]}
+                onPress={() => setCarryoverEnabled(!carryoverEnabled)}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.toggleKnob,
+                    carryoverEnabled && styles.toggleKnobEnabled,
+                  ]}
+                />
+              </TouchableOpacity>
+            </View>
+            {carryoverEnabled && (
+              <View style={styles.carryoverInfo}>
+                <Text style={styles.carryoverInfoText}>
+                  Current carryover: ${carryoverBalance.toFixed(2)}
+                </Text>
+                <Text style={styles.carryoverInfoText}>
+                  Days remaining: {Math.max(0, 3 - carryoverDays)}
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -336,5 +377,41 @@ content: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text.muted,
     textAlign: "center",
+  },
+  toggleLabel: {
+    flex: 1,
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.text.primary,
+  },
+  toggleButton: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: theme.colors.border,
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleButtonEnabled: {
+    backgroundColor: theme.colors.accent,
+  },
+  toggleKnob: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: theme.colors.background,
+  },
+  toggleKnobEnabled: {
+    alignSelf: 'flex-end',
+  },
+  carryoverInfo: {
+    marginTop: theme.spacing.sm,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.radius.md,
+  },
+  carryoverInfoText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
   },
 });
