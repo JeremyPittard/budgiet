@@ -11,6 +11,7 @@ interface BudgetRingProps {
   isOverBudget: boolean;
   progress: number;
   progressColor: string;
+  hardCapAmount?: number;
 }
 
 const SIZE = 200;
@@ -25,8 +26,9 @@ export const BudgetRing: React.FC<BudgetRingProps> = ({
   isOverBudget,
   progress,
   progressColor,
+  hardCapAmount,
 }) => {
-  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  const strokeDashoffset = CIRCUMFERENCE * (1 - Math.min(progress, 1));
 
   return (
     <View style={styles.container}>
@@ -62,13 +64,18 @@ export const BudgetRing: React.FC<BudgetRingProps> = ({
         </Text>
         <Text style={styles.remainingText}>
           {isOverBudget 
-            ? `${formatCurrency(Math.abs(remaining))} over budget`
-            : `${formatCurrency(remaining)} remaining`
+            ? `${formatCurrency(Math.abs(remaining))} over`
+            : `${formatCurrency(remaining)} left`
           }
         </Text>
         <Text style={styles.targetText}>
-          of {formatCurrency(target)} target
+          of {formatCurrency(target)}
         </Text>
+        {hardCapAmount && (
+          <Text style={styles.hardCapText}>
+            hard cap: {formatCurrency(hardCapAmount)}
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -101,5 +108,11 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text.muted,
     marginTop: theme.spacing.xs,
+  },
+  hardCapText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.text.muted,
+    marginTop: theme.spacing.xs,
+    fontStyle: 'italic',
   },
 });

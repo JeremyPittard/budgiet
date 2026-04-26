@@ -4,6 +4,10 @@ import { getSetting, setSetting } from './db';
 interface SettingsContextType {
   dailyTarget: number | null;
   setDailyTarget: (target: number) => Promise<void>;
+  dayStartHour: number;
+  setDayStartHour: (hour: number) => Promise<void>;
+  hardCap: number | null;
+  setHardCap: (cap: number) => Promise<void>;
   refreshSettings: () => Promise<void>;
   loading: boolean;
 }
@@ -24,6 +28,8 @@ interface SettingsProviderProps {
 
 export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) => {
   const [dailyTarget, setDailyTarget] = useState<number | null>(null);
+  const [dayStartHour, setDayStartHour] = useState<number>(4);
+  const [hardCap, setHardCapState] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   const loadSettings = useCallback(async () => {
@@ -32,9 +38,20 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       const targetStr = await getSetting('daily_target');
       const target = targetStr ? parseFloat(targetStr) : 50.00;
       setDailyTarget(target);
+
+      const hourStr = await getSetting('day_start_hour');
+      const hour = hourStr ? parseInt(hourStr, 10) : 4;
+      setDayStartHour(hour);
+
+      const hardCapStr = await getSetting('hard_cap');
+      const defaultHardCap = target * 1.5;
+      const hardCap = hardCapStr ? parseFloat(hardCapStr) : defaultHardCap;
+      setHardCapState(hardCap);
     } catch (error) {
       console.error('Error loading settings:', error);
       setDailyTarget(50.00);
+      setDayStartHour(4);
+      setHardCapState(75.00);
     } finally {
       setLoading(false);
     }
@@ -54,12 +71,36 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, []);
 
+  const updateDayStartHour = useCallback(async (hour: number) => {
+    try {
+      await setSetting('day_start_hour', hour.toString());
+      setDayStartHour(hour);
+    } catch (error) {
+      console.error('Error updating day start hour:', error);
+      throw error;
+    }
+  }, []);
+
+  const updateHardCap = useCallback(async (cap: number) => {
+    try {
+      await setSetting('hard_cap', cap.toFixed(2));
+      setHardCapState(cap);
+    } catch (error) {
+      console.error('Error updating hard cap:', error);
+      throw error;
+    }
+  }, []);
+
   const value = useMemo<SettingsContextType>(() => ({
     dailyTarget,
     setDailyTarget: updateDailyTarget,
+    dayStartHour,
+    setDayStartHour: updateDayStartHour,
+    hardCap,
+    setHardCap: updateHardCap,
     refreshSettings: loadSettings,
     loading,
-  }), [dailyTarget, loading, updateDailyTarget, loadSettings]);
+  }), [dailyTarget, dayStartHour, hardCap, loading, updateDailyTarget, updateDayStartHour, updateHardCap, loadSettings]);
 
   return (
     <SettingsContext.Provider value={value}>

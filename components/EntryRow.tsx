@@ -9,6 +9,7 @@ interface EntryRowProps {
   amount: number;
   label: string;
   createdAt: string;
+  note?: string;
   onDelete: (id: number) => void;
 }
 
@@ -17,6 +18,7 @@ export const EntryRow: React.FC<EntryRowProps> = ({
   amount,
   label,
   createdAt,
+  note,
   onDelete,
 }) => {
   const handleDelete = () => {
@@ -40,6 +42,11 @@ export const EntryRow: React.FC<EntryRowProps> = ({
         <Text style={styles.label} numberOfLines={1}>
           {label || 'Expense'}
         </Text>
+        {note && (
+          <Text style={styles.note} numberOfLines={2}>
+            {note}
+          </Text>
+        )}
         <Text style={styles.time}>
           {formatTime(createdAt)}
         </Text>
@@ -77,6 +84,12 @@ const styles = StyleSheet.create({
     fontWeight: theme.typography.fontWeight.medium,
     color: theme.colors.text.primary,
     marginBottom: theme.spacing.xs,
+  },
+  note: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.progress.overTarget,
+    marginBottom: theme.spacing.xs,
+    fontStyle: 'italic',
   },
   time: {
     fontSize: theme.typography.fontSize.sm,

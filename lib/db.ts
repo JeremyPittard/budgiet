@@ -49,13 +49,13 @@ export const setSetting = async (key: string, value: string) => {
   }
 };
 
-export const addEntry = async (amount: number, label: string = '') => {
+export const addEntry = async (amount: number, label: string = '', note?: string) => {
   if (isNative) {
     const { addEntry } = await import('./db.native');
-    return addEntry(amount, label);
+    return addEntry(amount, label, note);
   } else {
     const { addEntry } = await import('./db.web');
-    return addEntry(amount, label);
+    return addEntry(amount, label, note);
   }
 };
 
@@ -150,3 +150,5 @@ export const resetAllData = async () => {
 };
 
 export const db = null;
+
+export { getDaysInPeriod, getPeriodStartDate, getEntriesByDateRange, Period } from './db.native';

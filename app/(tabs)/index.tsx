@@ -7,7 +7,6 @@ import {
   ScrollView, 
   TouchableOpacity, 
   Alert,
-  FlatList,
   RefreshControl,
   Linking,
 } from 'react-native';
@@ -17,75 +16,95 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { theme, Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useDailySummary } from '@/lib/useDailySummary';
-import { useEntries } from '@/lib/useEntries';
 import { useSettings } from '@/lib/useSettings';
+import { usePeriodSummary } from '@/lib/usePeriodSummary';
+import { addEntry as addEntryToDb, deleteEntry as deleteEntryFromDb } from '@/lib/db';
 
 import { BudgetRing } from '@/components/BudgetRing';
 import { EntryRow } from '@/components/EntryRow';
 import { QuickAddForm } from '@/components/QuickAddForm';
 import { EmptyState } from '@/components/EmptyState';
 
+type PeriodType = 'today' | 'fortnight' | 'month' | 'year';
+
+const PERIODS: { key: PeriodType; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: 'fortnight', label: 'Fortnight' },
+  { key: 'month', label: 'Month' },
+  { key: 'year', label: 'Year' },
+];
+
 export default function TodayScreen() {
   const colorScheme = useColorScheme();
-  const { todayEntries, todayTotal, addEntry, deleteEntry, refreshToday, loading } = useEntries();
-  const { dailyTarget, remaining, isOverBudget, progress, progressColor, isTargetSet } = useDailySummary();
-  const { refreshSettings } = useSettings();
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('today');
+  const { dailyTarget, refreshSettings } = useSettings();
+  const { periodTarget, total, remaining, isOverBudget, progress, progressColor, isTargetSet, hardCapAmount, entries } = usePeriodSummary(selectedPeriod);
+  
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      refreshToday();
       refreshSettings();
-    }, [refreshToday, refreshSettings])
+    }, [refreshSettings])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshToday();
+    await refreshSettings();
     setRefreshing(false);
-  }, [refreshToday]);
+  }, [refreshSettings]);
 
-  const handleAddEntry = useCallback(async (amount: number, label: string) => {
+  const handleAddEntry = useCallback(async (amount: number, label: string, note?: string) => {
     try {
-      await addEntry(amount, label);
+      await addEntryToDb(amount, label, note);
     } catch (error) {
       Alert.alert('Error', 'Failed to add entry');
     }
-  }, [addEntry]);
+  }, []);
 
   const handleDeleteEntry = useCallback(async (id: number) => {
     try {
-      await deleteEntry(id);
+      await deleteEntryFromDb(id);
     } catch (error) {
       Alert.alert('Error', 'Failed to delete entry');
     }
-  }, [deleteEntry]);
+  }, []);
 
-  const handleResetDay = useCallback(() => {
+  const handleResetPeriod = useCallback(() => {
     Alert.alert(
-      'Reset Today',
-      'Are you sure you want to delete all entries for today?',
+      `Reset ${selectedPeriod === 'today' ? 'Today' : 'This ' + selectedPeriod}`,
+      `Are you sure you want to delete all entries for this period?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Delete Today', 
+          text: 'Delete', 
           style: 'destructive',
           onPress: async () => {
-            for (const entry of todayEntries) {
-              await deleteEntry(entry.id);
+            for (const entry of entries) {
+              await deleteEntryFromDb(entry.id);
             }
           },
         },
       ]
     );
-  }, [todayEntries, deleteEntry]);
+  }, [entries, selectedPeriod]);
 
   const openSettings = () => {
     Linking.openURL('track-bud://settings');
   };
 
-  const todayDate = format(new Date(), 'EEEE, MMMM d');
+  const getPeriodLabel = () => {
+    switch (selectedPeriod) {
+      case 'today':
+        return format(new Date(), 'EEEE, MMMM d');
+      case 'fortnight':
+        return 'This Fortnight';
+      case 'month':
+        return 'This Month';
+      case 'year':
+        return 'This Year';
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: Colors[colorScheme ?? 'dark'].background }]} edges={['top']}>
@@ -100,8 +119,31 @@ export default function TodayScreen() {
           />
         }
       >
+        {/* Period Selector */}
+        <View style={styles.periodSelector}>
+          {PERIODS.map((period) => (
+            <TouchableOpacity
+              key={period.key}
+              style={[
+                styles.periodButton,
+                selectedPeriod === period.key && styles.periodButtonActive,
+              ]}
+              onPress={() => setSelectedPeriod(period.key)}
+            >
+              <Text
+                style={[
+                  styles.periodButtonText,
+                  selectedPeriod === period.key && styles.periodButtonTextActive,
+                ]}
+              >
+                {period.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Date Header */}
-        <Text style={styles.dateHeader}>{todayDate}</Text>
+        <Text style={styles.dateHeader}>{getPeriodLabel()}</Text>
 
         {/* Budget Ring / Summary Card */}
         <View style={styles.card}>
@@ -117,48 +159,57 @@ export default function TodayScreen() {
             </View>
           ) : (
             <BudgetRing
-              spent={todayTotal}
+              spent={total}
               remaining={remaining ?? 0}
-              target={dailyTarget ?? 50}
+              target={periodTarget ?? 50}
               isOverBudget={isOverBudget}
               progress={progress}
               progressColor={progressColor}
+              hardCapAmount={hardCapAmount ?? undefined}
             />
           )}
         </View>
 
-        {/* Quick Add Form */}
-        <View style={styles.section}>
-          <QuickAddForm onAdd={handleAddEntry} />
-        </View>
+        {/* Quick Add Form - Only for Today */}
+        {selectedPeriod === 'today' && (
+          <View style={styles.section}>
+            <QuickAddForm 
+              onAdd={handleAddEntry} 
+              dailyTarget={dailyTarget ?? 50} 
+            />
+          </View>
+        )}
 
-        {/* Today's Entries */}
+        {/* Entries for Period */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today&apos;s Entries</Text>
-          {todayEntries.length === 0 ? (
-            <EmptyState message="No expenses yet today" />
+          <Text style={styles.sectionTitle}>
+            {selectedPeriod === 'today' ? "Today's Entries" : `This ${selectedPeriod}`}
+          </Text>
+          {entries.length === 0 ? (
+            <EmptyState message={`No expenses this ${selectedPeriod}`} />
           ) : (
-            todayEntries.map((entry) => (
+            entries.map((entry) => (
               <EntryRow
                 key={entry.id}
                 id={entry.id}
                 amount={entry.amount}
                 label={entry.label}
                 createdAt={entry.created_at}
+                note={entry.note}
                 onDelete={handleDeleteEntry}
               />
             ))
           )}
         </View>
 
-        {/* Reset Day Button */}
-        {todayEntries.length > 0 && (
+        {/* Reset Period Button */}
+        {entries.length > 0 && (
           <TouchableOpacity 
             style={styles.resetButton}
-            onPress={handleResetDay}
+            onPress={handleResetPeriod}
             activeOpacity={0.7}
           >
-            <Text style={styles.resetButtonText}>Reset Day</Text>
+            <Text style={styles.resetButtonText}>Reset {selectedPeriod === 'today' ? 'Day' : selectedPeriod}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -177,11 +228,35 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     paddingBottom: theme.spacing.xxl,
   },
+  periodSelector: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
+  },
+  periodButton: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    borderRadius: theme.radius.md,
+  },
+  periodButtonActive: {
+    backgroundColor: theme.colors.accent,
+  },
+  periodButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.text.secondary,
+  },
+  periodButtonTextActive: {
+    color: theme.colors.background,
+  },
   dateHeader: {
     fontSize: theme.typography.fontSize.xl,
     fontWeight: theme.typography.fontWeight.medium,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   card: {
     backgroundColor: theme.colors.card,

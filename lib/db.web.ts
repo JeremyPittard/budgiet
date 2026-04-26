@@ -1,12 +1,15 @@
 // Web fallback - uses localStorage
 const STORAGE_KEY = 'budget_tracker_data';
 
+export type Period = 'today' | 'fortnight' | 'month' | 'year';
+
 interface Entry {
   id: number;
   amount: number;
   label: string;
   date: string;
   created_at: string;
+  note?: string;
 }
 
 interface Rollover {
@@ -20,6 +23,8 @@ interface Rollover {
 
 interface Settings {
   daily_target: string;
+  day_start_hour: number;
+  hard_cap?: string;
 }
 
 interface StorageData {
@@ -29,9 +34,57 @@ interface StorageData {
 }
 
 let cache: StorageData = {
-  settings: { daily_target: '50.00' },
+  settings: { daily_target: '50.00', day_start_hour: 4 },
   entries: [],
   rollovers: [],
+};
+
+const getEffectiveToday = (dayStartHour: number): string => {
+  const now = new Date();
+  const localHour = now.getHours();
+  if (localHour < dayStartHour) {
+    now.setDate(now.getDate() - 1);
+  }
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const isLeapYear = (year: number): boolean => {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+};
+
+export const getDaysInPeriod = (period: Period): number => {
+  const year = new Date().getFullYear();
+  switch (period) {
+    case 'today':
+      return 1;
+    case 'fortnight':
+      return 14;
+    case 'month':
+      return 30;
+    case 'year':
+      return isLeapYear(year) ? 366 : 365;
+  }
+};
+
+export const getPeriodStartDate = (period: Period, dayStartHour: number): string => {
+  const now = new Date();
+  const days = getDaysInPeriod(period);
+  now.setDate(now.getDate() - (days - 1));
+  
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const getEntriesByDateRange = async (startDate: string, endDate: string): Promise<Entry[]> => {
+  cache = loadData();
+  return cache.entries
+    .filter(e => e.date >= startDate && e.date <= endDate)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
 const loadData = (): StorageData => {
@@ -43,7 +96,7 @@ const loadData = (): StorageData => {
   } catch (e) {
     console.error('Error loading data:', e);
   }
-  return { settings: { daily_target: '50.00' }, entries: [], rollovers: [] };
+  return { settings: { daily_target: '50.00', day_start_hour: 4 }, entries: [], rollovers: [] };
 };
 
 const saveData = (data: StorageData): void => {
@@ -73,12 +126,12 @@ export const setSetting = async (key: string, value: string): Promise<void> => {
   saveData(cache);
 };
 
-export const addEntry = async (amount: number, label: string = ''): Promise<number> => {
+export const addEntry = async (amount: number, label: string = '', note?: string): Promise<number> => {
   cache = loadData();
   const id = Date.now();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getEffectiveToday(cache.settings.day_start_hour ?? 4);
   const now = new Date().toISOString();
-  cache.entries.push({ id, amount, label, date: today, created_at: now });
+  cache.entries.push({ id, amount, label, date: today, created_at: now, note });
   saveData(cache);
   return id;
 };
@@ -98,7 +151,7 @@ export const deleteEntry = async (id: number): Promise<void> => {
 
 export const getTodayTotal = async (): Promise<number> => {
   cache = loadData();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getEffectiveToday(cache.settings.day_start_hour ?? 4);
   return cache.entries
     .filter(e => e.date === today)
     .reduce((sum, e) => sum + e.amount, 0);
@@ -150,6 +203,6 @@ export const markRolloverPrompted = async (fromDate: string) => {
 };
 
 export const resetAllData = async (): Promise<void> => {
-  cache = { settings: { daily_target: '50.00' }, entries: [], rollovers: [] };
+  cache = { settings: { daily_target: '50.00', day_start_hour: 4 }, entries: [], rollovers: [] };
   saveData(cache);
 };
